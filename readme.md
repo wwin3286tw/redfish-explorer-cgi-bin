@@ -1,28 +1,65 @@
-#!/bin/bash
-source /var/www/cgi-bin/libRedfish.sh
+# Redfish API Bash 腳本與 BusyBox httpd CGI 配置
 
-# 顯示內容類型（這裏是 HTML）
-echo "Content-type: text/html"
-echo ""
+這個 Bash 腳本旨在調用 Redfish API 並對返回的 JSON 數據進行處理，將其中的 `@odata.id` 轉換為可點擊的 HTML 鏈接。此外，本文還將介紹如何使用 BusyBox 的 httpd 作為 CGI 伺服器。
 
-# 解析 QUERY_STRING 以獲取 BMC_IP 和 API_PATH
-query_string="$QUERY_STRING"
+## 環境需求
 
-# 使用 awk 或其他文本處理工具解析查詢字符串
-bmc_ip=$(echo "$query_string" | awk -F'[=&]' '{for(i=1;i<=NF;i++) if ($i=="BMC_IP") print $(i+1)}')
-api_path=$(echo "$query_string" | awk -F'[=&]' '{for(i=1;i<=NF;i++) if ($i=="API_PATH") print $(i+1)}')
+- Bash
+- awk
+- sed
+- BusyBox
 
-# 如果 bmc_ip 為空，返回錯誤信息
-if [ -z "$bmc_ip" ]; then
-  echo "Error: BMC_IP is not provided."
-  exit 1
-fi
+## 安裝Busybox
+```bash
 
-# 調用您的 perform_redfish_operation 函數，並使用 sed 進行替換
-redfish_output=$(perform_redfish_operation "GET" "$bmc_ip" "$api_path")
+apt install busybox
 
-# 使用 sed 將 @odata.id 的值替換為包含 <a> 標籤的形式，並移除 "redfish/v1/"
-redfish_output_with_links=$(echo "$redfish_output" | sed -E "s#(@odata\.id\": \")(/redfish/v1)?(/)([^\"]+)#\1<a href=\"index.sh?BMC_IP=${bmc_ip}\&API_PATH=\4\">\4</a>#g")
+```
+### Bash 腳本
 
-# 輸出
-echo "$redfish_output_with_links"
+1. 確保你的系統已經安裝了上述環境需求。
+2. 建立資料夾: /var/www/cgi-bin/
+    ```bash
+    mkdir -p /var/www/cgi-bin/
+    ```
+3. 下載 `libRedfish.sh` 和 `index.sh` 到 `/var/www/cgi-bin`。
+4. 為 `/var/www/cgi-bin/index.sh` 添加執行權限：
+
+   ```bash
+   chmod +x /var/www/cgi-bin/index.sh
+   ```
+### BusyBox httpd CGI
+安裝 BusyBox 並確保 httpd 功能可用。
+#### 方法一
+在當前配置目錄中創建一個 httpd.conf 檔案（如果尚未存在）。
+
+在 httpd.conf 中添加以下行以啟用 CGI：
+這會將 /cgi-bin 映射到 /var/www/cgi-bin 目錄。
+
+啟動或重新啟動 BusyBox httpd：
+
+```bash
+busybox httpd -p 8081
+```
+這會在端口 8081 啟動 httpd 服務。
+#### 方法二
+執行命令如下
+```bash
+busybox httpd -f -p 8080 -h /var/www/
+```
+### 如何使用
+打開瀏覽器並訪問以下網址（替換 localhost 和 8081 為實際的主機和端口）：
+```bash
+http://localhost:8081/cgi-bin/index.sh?BMC_IP=<Your_BMC_IP>&API_PATH=<Your_API_PATH>
+# example: http://localhost:8081/cgi-bin/index.sh?BMC_IP=172.70.8.127
+```
+
+* 您可能會需要先設置ssh tunnel以便在本機(localhost)訪問
+![image](https://user-images.githubusercontent.com/7022841/271929963-b96ef093-65fb-44cd-8c35-8a8fbf37d4b1.png)
+
+* URL參數說明
+- BMC_IP: 目標 BMC 的 IP 地址。
+- API_PATH: 要訪問的 Redfish API 路徑（不含 /redfish/v1）。
+- 瀏覽器將顯示處理過的 JSON 數據，其中的 @odata.id 已轉換為可點擊的 HTML 鏈接。
+
+
