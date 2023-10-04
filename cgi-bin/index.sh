@@ -41,7 +41,7 @@ if [ ! -z "$$redfish_output_with_links" ];then
     echo "<script>"
     echo "\$(document).ready(function(){"
     echo "  // 假設 bmc_ip 已經被設定"
-    echo "  var bmc_ip = \"your_bmc_ip_here\";"
+    echo "  var bmc_ip = \"${bmc_ip}\";"
     echo ""
     echo "  \$(\".json-string\").each(function() {"
     echo "    var originalText = \$(this).text();"
